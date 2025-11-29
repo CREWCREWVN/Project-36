@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ Chuyển đổi Dữ liệu Câu hỏi (Custom JSON)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+
+        .question-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .question-list::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .question-list::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+
+        .question-list::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-10">
+
+    <div class="max-w-6xl mx-auto bg-white shadow-2xl rounded-xl p-6 md:p-10">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6 border-b pb-3 text-center">
+            Convert cho web bài tập
+        </h1>
+        <div id="status-message"
+            class="hidden mb-4 p-3 rounded-lg text-center font-medium transition duration-300 transform scale-100">
+        </div>
+
+        <!-- chỗ add câu hỏi-->
+        <div id="add-question-section" class="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-lg shadow-inner">
+            <h2 class="text-xl font-bold text-blue-700 mb-4">Thêm Câu Hỏi Mới</h2>
+            <div class="flex flex-col md:flex-row gap-4 mb-4">
+                <select id="question-type-select"
+                    class="p-3 border border-blue-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow">
+                    <option value="multiple_choice">1. Trắc nghiệm (Chung)</option>
+                    <option value="multiple_true_false">2. Đúng/Sai Nhiều Khẳng định</option>
+                    <option value="short_answer">3. Trả lời ngắn (Short Answer)</option>
+                    <option value="essay">4. Tự luận (Essay)</option>
+                </select>
+                <button onclick="addNewQuestionUI()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 transform hover:scale-[1.02]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    Tạo Thêm Câu Hỏi
+                </button>
+            </div>
+        </div>
+
+        <!--Danh sách -->
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Danh sách Câu Hỏi Đã Tạo</h2>
+        <div id="question-list"
+            class="question-list space-y-6 max-h-[70vh] overflow-y-auto pr-2 pb-2 border border-gray-300 p-4 rounded-lg bg-gray-50">
+            <!--Chỗ tạo thêm câu hỏi -->
+            <p class="text-center text-gray-500 p-4 italic">Hãy nhấn "Tạo Thêm Câu Hỏi" để bắt đầu!</p>
+        </div>
+
+        <!-- Xuất -->
+        <div class="mt-8 pt-4 border-t border-gray-300 flex justify-end gap-4">
+            <button onclick="saveAllQuestions(true)" id="save-all-btn"
+                class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05] flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Lưu Tất Cả Câu Hỏi
+            </button>
+            <button onclick="exportJSON()"
+                class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05] flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Xuất Dữ liệu (JS Variable)
+            </button>
+        </div>
+
+        <!-- Base64 -->
+        <div class="mt-4 p-4 bg-yellow-100 border border-yellow-300 rounded-lg text-sm text-gray-700">
+            <h3 class="font-bold text-yellow-800 mb-2">Lưu ý về định dạng:</h3>
+            <ul class="list-disc list-inside space-y-1">
+                <li>Đối với Trắc nghiệm (Chung), thêm dấu <span class="font-mono text-red-600">*</span> vào
+                    ĐẦU dòng của đáp án đúng.</li>
+                <li>Sử dụng nút **Chèn Ảnh** để tải ảnh lên. Công cụ sẽ tự động chèn **thẻ `<img>` HTML hoàn chỉnh**
+                    vào nội dung câu hỏi.</li>
+                <li>Khi xuất file, nội dung câu hỏi (`question` field) sẽ bao gồm cả thẻ `<img>` Base64.</li>
+                <li>Sử dụng cú pháp <span class="font-mono text-green-600">$...$</span> hoặc <span
+                        class="font-mono text-green-600">$$...$$</span> cho công thức toán học (LaTeX).</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Chỗ lưu trữ toàn bộ câu hỏi
+        let allQuestions = [];
+        const questionListContainer = document.getElementById('question-list');
+        const statusMessageEl = document.getElementById('status-message');
+        let questionCounter = 0;
+
+        /*y
+         * Hiển thị thông báo/
+         */
+        function showGlobalStatus(message, type = 'info') {
+            statusMessageEl.textContent = message;
+            statusMessageEl.className = 'mb-4 p-3 rounded-lg text-center font-medium transition duration-300 transform scale-100';
+            statusMessageEl.classList.remove('hidden');
+
+            switch (type) {
+                case 'success':
+                    statusMessageEl.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-400');
+                    break;
+                case 'error':
+                    statusMessageEl.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-400');
+                    break;
+                case 'info':
+                default:
+                    statusMessageEl.classList.add('bg-blue-100', 'text-blue-800', 'border', 'border-blue-400');
+                    break;
+            }
+
+            setTimeout(() => {
+                statusMessageEl.classList.add('hidden');
+                statusMessageEl.className = '';
+            }, 5000);
+        }
+
+        /**
+         * Base 64 converter
+         */
+        function imageToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+        async function handleImageUpload(currentQuestionId) {
+            const container = document.getElementById(currentQuestionId);
+            const imageInput = container.querySelector('.image-file-input');
+            const questionTextarea = container.querySelector('textarea.question-text');
+            const loaderEl = container.querySelector('.image-loader');
+            const uploadButton = container.querySelector('button[onclick^="handleImageUpload"]');
+
+            if (imageInput.files.length === 0) {
+                showGlobalStatus('Vui lòng chọn một file ảnh để chèn.', 'error');
+                return;
+            }
+
+            const file = imageInput.files[0];
+            if (!file.type.startsWith('image/')) {
+                showGlobalStatus('File đã chọn không phải là ảnh.', 'error');
+                return;
+            }
+
+            // Hiển thị trạng thái đang xử lý
+            uploadButton.disabled = true;
+            loaderEl.classList.remove('hidden');
+
+            try {
+                // base64String đã bao gồm prefix "data:image/mime;base64,"
+                const base64String = await imageToBase64(file);
+                
+                // Tạo thẻ <img> hoàn chỉnh với style tối ưu cho hiển thị responsive
+                const imgTag = `<img src="${base64String}" alt="Question Image" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; margin-bottom: 10px;">`;
+
+                // Chèn vào ô nội dung câu hỏi (thêm xuống dòng để dễ nhìn)
+                let currentValue = questionTextarea.value.trim();
+                questionTextarea.value = (currentValue ? currentValue + '\n\n' : '') + imgTag;
+
+                showGlobalStatus('Đã chèn thẻ <img> Base64 vào nội dung câu hỏi thành công!', 'success');
+
+                imageInput.value = ''; // Xóa file đã chọn
+            } catch (error) {
+                console.error('Lỗi khi chuyển đổi ảnh:', error);
+                showGlobalStatus('Lỗi xử lý ảnh. Vui lòng thử lại.', 'error');
+            } finally {
+                loaderEl.classList.add('hidden');
+                uploadButton.disabled = false;
+            }
+        }
+
+
+        // =========================================================================
+        // HÀM XỬ LÝ LƯU VÀ XUẤT DỮ LIỆU
+        // =========================================================================
+
+        /**
+         * Lặp qua tất cả thẻ câu hỏi trong UI và cập nhật mảng allQuestions
+         * @param {boolean} showSuccess - Có hiển thị thông báo thành công không
+         */
+        function saveAllQuestions(showSuccess = false) {
+            const questionCards = questionListContainer.querySelectorAll('.question-card');
+            allQuestions = []; // Reset mảng dữ liệu
+            let skippedCount = 0;
+
+            if (questionCards.length === 0) {
+                if (showSuccess) showGlobalStatus('Không có câu hỏi nào để lưu.', 'info');
+                return;
+            }
+
+            questionCards.forEach(container => {
+                const type = container.dataset.type;
+                // Lấy toàn bộ nội dung, bao gồm cả thẻ <img>
+                const fullQuestionText = container.querySelector('textarea.question-text').value.trim(); 
+
+                // Bỏ qua các câu hỏi có nội dung trống hoàn toàn
+                if (fullQuestionText === '') return;
+
+                // Cấu trúc dữ liệu theo yêu cầu của người dùng
+                let newQuestion = {
+                    type: '', // Sẽ được cập nhật sau
+                    question: fullQuestionText, // Giữ nguyên toàn bộ nội dung (bao gồm cả <img>)
+                    mappedType: '', // Sẽ được cập nhật sau
+                    optionsImage: [], // Mặc định là mảng rỗng
+                    // KHÔNG còn trường questionImage nữa
+                };
+
+                // Thiết lập mappedType và type theo định dạng mong muốn
+                if (type === 'multiple_choice') {
+                    newQuestion.type = 'multiple-choice';
+                    newQuestion.mappedType = 'multiple-choice';
+
+                    const choicesElements = container.querySelectorAll('textarea.choice-input');
+                    let options = [];
+                    let correctAnswerIndex = -1;
+
+                    choicesElements.forEach((el, index) => {
+                        let choiceText = el.value.trim();
+                        if (choiceText !== '') {
+                            // Kiểm tra dấu * ở đầu dòng
+                            if (choiceText.startsWith('*')) {
+                                options.push(choiceText.substring(1).trim());
+                                correctAnswerIndex = index;
+                            } else {
+                                options.push(choiceText);
+                            }
+                        }
+                    });
+
+                    if (options.length > 0 && correctAnswerIndex !== -1) {
+                        newQuestion.options = options;
+                        newQuestion.correctAnswerIndex = correctAnswerIndex;
+                        allQuestions.push(newQuestion);
+                    } else {
+                        skippedCount++;
+                    }
+
+                } else if (type === 'multiple_true_false') {
+                    newQuestion.type = 'true-false';
+                    newQuestion.mappedType = 'true-false';
+                    newQuestion.main_question = fullQuestionText; // Dùng trường main_question cho Đúng/Sai
+                    delete newQuestion.question; // Xóa trường question
+
+                    const statementItems = container.querySelectorAll('.statement-item');
+                    let statementsData = [];
+
+                    statementItems.forEach(item => {
+                        const statementText = item.querySelector('.statement-text-input').value;
+                        if (statementText.trim() !== '') {
+                            const isCorrect = item.querySelector('.statement-correct-select').value === 'true';
+                            statementsData.push({
+                                statement: statementText.trim(),
+                                is_correct: isCorrect
+                            });
+                        }
+                    });
+
+                    if (statementsData.length > 0) {
+                        newQuestion.statements = statementsData;
+                        allQuestions.push(newQuestion);
+                    } else {
+                        skippedCount++;
+                    }
+
+                } else if (type === 'short_answer') {
+                    newQuestion.type = 'short-answer';
+                    newQuestion.mappedType = 'short-answer';
+
+                    const answerText = container.querySelector('input.short-answer-input').value;
+                    
+                    // CHỈ LƯU NẾU CÓ ĐÁP ÁN ĐƯỢC CUNG CẤP VÀ CÓ NỘI DUNG CÂU HỎI
+                    if (answerText.trim() !== '') {
+                        newQuestion.answer = answerText.trim();
+                        allQuestions.push(newQuestion);
+                    } else {
+                        skippedCount++;
+                    }
+
+                } else if (type === 'essay') {
+                    newQuestion.type = 'essay';
+                    newQuestion.mappedType = 'essay';
+                    // Tự luận chỉ cần có nội dung (đã được kiểm tra ở đầu hàm)
+                    allQuestions.push(newQuestion);
+                }
+            });
+
+            if (showSuccess) {
+                if (allQuestions.length > 0) {
+                    let message = `Đã lưu thành công ${allQuestions.length} câu hỏi hợp lệ vào bộ nhớ!`;
+                    if (skippedCount > 0) {
+                         message += ` (${skippedCount} câu hỏi bị bỏ qua do thiếu đáp án/lựa chọn cần thiết.)`;
+                    }
+                    showGlobalStatus(message, 'success');
+                } else {
+                    showGlobalStatus('Không có câu hỏi hợp lệ nào được lưu. Vui lòng kiểm tra lại nội dung và đáp án.', 'error');
+                }
+            }
+            console.log('Dữ liệu Quiz hiện tại (Đã lưu):', allQuestions);
+        }
+
+        function exportJSON() {
+            saveAllQuestions();
+
+            const exportData = allQuestions.filter(q => {
+                if (q.type === 'multiple-choice') {
+                    return q.options && q.options.length > 0 && q.correctAnswerIndex !== -1;
+                } else if (q.type === 'true-false') {
+                    return q.statements && q.statements.length > 0;
+                } else if (q.type === 'short-answer') {
+                    return q.answer && q.answer.trim() !== ''; // Phải có đáp án
+                } else if (q.type === 'essay') {
+                    return true; 
+                }
+                return false;
+            });
+
+            if (exportData.length === 0) {
+                showGlobalStatus('Không có câu hỏi nào hợp lệ để xuất.', 'error');
+                return;
+            }
+
+            const jsonString = JSON.stringify(exportData, null, 2);
+            const jsContent = `let quizData = ${jsonString};`;
+
+            const blob = new Blob([jsContent], {
+                type: 'application/javascript'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `quiz_data_${new Date().toISOString().slice(0, 10)}.js`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showGlobalStatus(`Đã xuất thành công ${exportData.length} câu hỏi ra file JS!`, 'success');
+        }
+
+        function deleteQuestion(id) {
+            const container = document.getElementById(id);
+            if (container) {
+                container.remove();
+            }
+
+            saveAllQuestions();
+            updateQuestionNumbers();
+
+            if (questionListContainer.children.length === 0) {
+                questionListContainer.innerHTML = '<p class="text-center text-gray-500 p-4 italic">Hãy nhấn "Tạo Thêm Câu Hỏi" để bắt đầu!</p>';
+            }
+        }
+
+        function updateQuestionNumbers() {
+            // Lấy tất cả thẻ câu hỏi đang hiển thị, không dựa vào mảng allQuestions
+            const questionCards = questionListContainer.querySelectorAll('.question-card');
+
+            const total = questionCards.length;
+            Array.from(questionCards).reverse().forEach((card, index) => {
+                const displayIndex = index + 1; // Số thứ tự hiển thị
+                const header = card.querySelector('.question-header');
+                const originalTitle = header.dataset.originalTitle || 'Câu hỏi';
+                header.innerHTML = `${displayIndex}. ${originalTitle}`;
+            });
+        }
+
+
+        // =========================================================================
+        // TẠO GIAO DIỆN
+        // =========================================================================
+
+        function createStatementMarkup(statementText = '', isCorrect = true, index) {
+            const isTrueSelected = isCorrect ? 'selected' : '';
+            const isFalseSelected = isCorrect ? '' : 'selected';
+
+            return `
+                <div class="statement-item flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg shadow-sm" data-index="${index}">
+                    <span class="mt-2 text-gray-500 font-bold statement-number flex-shrink-0">${index + 1}.</span>
+                    <textarea
+                        rows="2"
+                        class="statement-text-input p-2 border border-gray-300 rounded-lg w-full focus:ring-green-500 focus:border-green-500 flex-grow"
+                        placeholder="Nhập nội dung khẳng định (Có thể dùng LaTeX như $\\frac{1}{2}$)"
+                    >${statementText}</textarea>
+                    <div class="flex-shrink-0 w-32">
+                        <select class="statement-correct-select p-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 w-full">
+                            <option value="true" ${isTrueSelected}>Đúng</option>
+                            <option value="false" ${isFalseSelected}>Sai</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="deleteStatement(this)" class="mt-2 text-red-500 hover:text-red-700 transition duration-150 flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }
+
+        function addStatement(questionId) {
+            const container = document.getElementById(questionId);
+            const statementsContainer = container.querySelector('.statements-container');
+            const newIndex = statementsContainer.children.length;
+
+            const markup = createStatementMarkup('Khẳng định mới', true, newIndex);
+            statementsContainer.insertAdjacentHTML('beforeend', markup);
+            updateStatementNumbers(statementsContainer);
+        }
+
+        function deleteStatement(buttonElement) {
+            const item = buttonElement.closest('.statement-item');
+            const statementsContainer = item.parentElement;
+            item.remove();
+            updateStatementNumbers(statementsContainer);
+        }
+
+        function updateStatementNumbers(statementsContainer) {
+            Array.from(statementsContainer.children).forEach((item, index) => {
+                const numberEl = item.querySelector('.statement-number');
+                if (numberEl) {
+                    numberEl.textContent = `${index + 1}.`;
+                    item.dataset.index = index;
+                }
+            });
+        }
+
+
+        function createQuestionMarkup(questionData, index) {
+            const {
+                id,
+                type,
+                question,
+                data
+            } = questionData;
+            let title = '';
+            let detailsMarkup = '';
+            let questionPlaceholder = "Nhập nội dung câu hỏi chính (Có thể dán thẻ <img> HTML Base64 vào đây)";
+            let defaultQuestionText = question || ''; 
+            switch (type) {
+                case 'multiple_choice':
+                    title = 'Trắc nghiệm (Chung)';
+                
+                    const choices = data.choices && data.choices.length > 0 ? data.choices : ['*Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D'];
+                    detailsMarkup = `
+                        <div class="mt-4 space-y-3 p-4 bg-purple-100 border border-purple-300 rounded-lg">
+                            <h4 class="font-bold text-purple-700">Lựa chọn (Thêm * vào đầu đáp án đúng):</h4>
+                            <div id="choices-container-${id}" class="space-y-3">
+                                ${choices.map((choice, i) => `
+                                    <div class="flex items-start space-x-2 choice-item" data-index="${i}">
+                                        <span class="mt-2 text-gray-500 choice-label flex-shrink-0 w-6">${String.fromCharCode(65 + i)}.</span>
+                                        <textarea
+                                            rows="1"
+                                            class="choice-input p-2 border border-gray-300 rounded-lg w-full focus:ring-purple-500 focus:border-purple-500"
+                                            placeholder="Nhập nội dung lựa chọn..."
+                                        >${choice}</textarea>
+                                        <button type="button" onclick="deleteChoice(this)" class="mt-2 text-red-500 hover:text-red-700 transition duration-150 flex-shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <button type="button" onclick="addChoice('${id}')"
+                                class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 w-full text-sm mt-3 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                                </svg>
+                                Thêm Lựa chọn
+                            </button>
+                        </div>
+                    `;
+                    break;
+
+                case 'multiple_true_false':
+                    title = 'Đúng/Sai Nhiều Khẳng định';
+                    questionPlaceholder = "Nhập câu hỏi chính (Ví dụ: Cho hàm số $f(x)=...$. Xác định các khẳng định sau)";
+                    const statements = data.statements && data.statements.length > 0 ? data.statements : [
+                        {
+                            statement: 'Khẳng định 1',
+                            is_correct: true
+                        },
+                        {
+                            statement: 'Khẳng định 2',
+                            is_correct: false
+                        },
+                    ];
+                    detailsMarkup = `
+                        <div class="mt-4 space-y-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <h4 class="font-bold text-green-700">Quản lý Khẳng định con:</h4>
+                            <div class="statements-container space-y-3">
+                                ${statements.map((s, i) => createStatementMarkup(s.statement, s.is_correct, i)).join('')}
+                            </div>
+                            <button type="button" onclick="addStatement('${id}')"
+                                class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 w-full text-sm mt-3 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                                </svg>
+                                Thêm Khẳng định Mới
+                            </button>
+                        </div>
+                    `;
+                    break;
+
+                case 'short_answer':
+                    title = 'Trả lời ngắn (Short Answer)';
+                    const answer = data.correctAnswer || '';
+                    detailsMarkup = `
+                        <div class="mt-4 p-4 bg-indigo-100 border border-indigo-300 rounded-lg">
+                            <h4 class="font-medium text-indigo-700">Đáp án chính xác (Phân biệt chữ hoa/thường):</h4>
+                            <input type="text" value="${answer}" class="short-answer-input p-2 border border-gray-300 rounded-lg w-full focus:ring-purple-500 focus:border-purple-500 mt-2" placeholder="Nhập câu trả lời ngắn gọn...">
+                            <p class="text-xs text-gray-600 mt-2 italic">Lưu ý: Câu hỏi này sẽ bị bỏ qua nếu trường này trống khi xuất file (vì không có đáp án).</p>
+                        </div>
+                    `;
+                    break;
+
+                case 'essay':
+                    title = 'Dạng Tự luận (Essay)';
+                    detailsMarkup = `
+                        <div class="mt-4 p-3 bg-gray-200 border border-gray-300 rounded-lg text-sm text-gray-700">
+                            <p>Đây là câu hỏi Tự luận. Không yêu cầu định nghĩa đáp án chính xác.</p>
+                            <p>Thí sinh sẽ trả lời bằng văn bản dài. Câu hỏi sẽ được lưu nếu có nội dung (text hoặc ảnh).</p>
+                        </div>
+                    `;
+                    break;
+            }
+
+            return `
+                <div id="${id}" data-type="${type}" class="question-card p-6 border border-purple-300 rounded-xl bg-white shadow-lg transition duration-300">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2 bg-purple-50 -mx-6 -mt-6 px-6 py-4 rounded-t-xl">
+                        <h3 class="question-header text-xl font-bold text-purple-800" data-original-title="${title}">
+                            ${index + 1}. ${title}
+                        </h3>
+                        <button onclick="deleteQuestion('${id}')" class="text-red-500 hover:text-red-700 transition duration-150 p-2 rounded-full hover:bg-red-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Khu vực Nội dung Câu hỏi -->
+                    <label class="block text-gray-700 font-semibold mb-2">Nội dung Câu hỏi/Khẳng định Chính (Bao gồm thẻ <img> Base64):</label>
+                    <textarea
+                        rows="4"
+                        class="question-text w-full p-3 border border-purple-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 mb-4"
+                        placeholder="${questionPlaceholder}"
+                    >${defaultQuestionText}</textarea>
+
+                    <!-- Khu vực Tải và Chèn Ảnh Base64 -->
+                    <div class="mb-4 p-3 bg-gray-100 border border-gray-300 rounded-lg">
+                        <label class="block text-gray-700 font-semibold mb-2">Chèn Ảnh (Sẽ tạo thẻ &lt;img src="..."&gt; Base64):</label>
+                        <div class="flex flex-col sm:flex-row gap-3 items-center">
+                            <input type="file" accept="image/*" class="image-file-input text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 flex-grow" />
+                            <button onclick="handleImageUpload('${id}')"
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 w-full sm:w-auto flex items-center justify-center">
+                                <span class="image-loader hidden mr-2">
+                                    <div class="loader"></div>
+                                </span>
+                                Chèn Ảnh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Khu vực Chi tiết Đáp án/Khẳng định -->
+                    ${detailsMarkup}
+                </div>
+            `;
+        }
+
+        // --- TRẮC NGHIỆM (MULTIPLE CHOICE) ---
+        function addChoice(questionId) {
+            const container = document.getElementById(questionId);
+            const choicesContainer = container.querySelector(`#choices-container-${questionId}`);
+            const currentChoicesCount = choicesContainer.children.length;
+
+            const newIndex = currentChoicesCount;
+            const newLabel = String.fromCharCode(65 + newIndex);
+
+            const newChoiceMarkup = `
+                <div class="flex items-start space-x-2 choice-item" data-index="${newIndex}">
+                    <span class="mt-2 text-gray-500 choice-label flex-shrink-0 w-6">${newLabel}.</span>
+                    <textarea
+                        rows="1"
+                        class="choice-input p-2 border border-gray-300 rounded-lg w-full focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="Nhập nội dung lựa chọn..."
+                    ></textarea>
+                    <button type="button" onclick="deleteChoice(this)" class="mt-2 text-red-500 hover:text-red-700 transition duration-150 flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+            choicesContainer.insertAdjacentHTML('beforeend', newChoiceMarkup);
+            updateChoiceLabels(choicesContainer);
+        }
+
+        function deleteChoice(buttonElement) {
+            const item = buttonElement.closest('.choice-item');
+            const choicesContainer = item.parentElement;
+            item.remove();
+            updateChoiceLabels(choicesContainer);
+        }
+
+        function updateChoiceLabels(choicesContainer) {
+            Array.from(choicesContainer.children).forEach((item, index) => {
+                const labelEl = item.querySelector('.choice-label');
+                if (labelEl) {
+                    labelEl.textContent = `${String.fromCharCode(65 + index)}.`;
+                }
+            });
+        }
+
+
+        function addNewQuestionUI(initialType = null) {
+            // Xóa thông báo khi thêm câu hỏi đầu tiên
+            if (questionListContainer.children.length === 1 && questionListContainer.children[0].tagName === 'P') {
+                questionListContainer.innerHTML = '';
+            }
+
+            const typeSelect = document.getElementById('question-type-select');
+            const type = initialType || typeSelect.value;
+
+            questionCounter++;
+            const newId = `q-${questionCounter}`;
+            
+            const currentDisplayCount = questionListContainer.querySelectorAll('.question-card').length;
+
+            let defaultQuestion = {
+                id: newId,
+                type: type,
+                question: '', 
+                data: {}
+            };
+
+            switch (type) {
+                case 'multiple_choice':
+                    defaultQuestion.data.choices = ['*Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D'];
+                    break;
+                case 'multiple_true_false':
+                    defaultQuestion.data.statements = [
+                        {
+                            statement: 'Khẳng định 1',
+                            is_correct: true
+                        },
+                        {
+                            statement: 'Khẳng định 2',
+                            is_correct: false
+                        },
+                    ];
+                    break;
+                case 'short_answer':
+                    defaultQuestion.data.correctAnswer = '';
+                    break;
+                case 'essay':
+                default:
+                    defaultQuestion.data = {};
+                    break;
+            }
+            const markup = createQuestionMarkup(defaultQuestion, currentDisplayCount);
+            questionListContainer.insertAdjacentHTML('afterbegin', markup);
+            updateQuestionNumbers();
+            questionListContainer.scrollTop = 0;
+            saveAllQuestions();
+        }
+        function initialize() {
+            if (questionListContainer.children.length === 0) {
+                questionListContainer.innerHTML = '<p class="text-center text-gray-500 p-4 italic">Hãy nhấn "Tạo Thêm Câu Hỏi" để bắt đầu!</p>';
+            }
+        }
+
+        window.onload = initialize;
+    </script>
+</body>
+
+</html>
